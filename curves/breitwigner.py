@@ -67,8 +67,11 @@ def line(x,theta):
     return theta[0]*x + theta[1]
 
 def BreitWigner(x, theta):
-    #theta[0]=M of resonance; theta[1]=Gamma/M
-    ff = (np.sqrt(8)/np.pi)*(1/theta[0])*np.sqrt((1+theta[1]**2)/(1+np.sqrt(1+theta[1]**2)))*theta[1]/((x**2 -1.0)**2 + theta[1]**2)
+    #theta[0]=M of resonance; theta[1]=Gamma
+    ff = (np.sqrt(2)/np.pi)*theta[0]*theta[1]*np.sqrt((theta[0]*(theta[0]**2+theta[1]**2))/(theta[0]+np.sqrt(theta[0]**2+theta[1]**2)))/((x**2-theta[0]**2)**2 + (theta[0]*theta[1])**2)
+    gamma = np.sqrt((theta[0]**2)*((theta[0]**2)+(theta[1]**2)))
+    k = (np.sqrt(8)/np.pi)*theta[0]*theta[1]*gamma/np.sqrt(theta[0]**2 + gamma)
+    ff = k/((x**2-theta[0]**2)**2 + (theta[0]*theta[1])**2)
     return ff
 
 def data_gen(x,model,theta,rng,sigma):
@@ -86,24 +89,25 @@ if __name__ == "__main__":
     rng = np.random.default_rng(4269420)
     M = 1.0e6
     gamma = 5.0e5
-    theta = (M,gamma/M)
+    theta = (M,gamma)
 
-    x = np.linspace(0.0,2.0e0*(np.sqrt(1+theta[1]**2)),100)
+    x = np.linspace(1.0,2.0e0*(theta[0]+theta[1]),70)
     yy = BreitWigner(x,theta)
-    sigma_noise=np.max(yy)/2.0
+    sigma_noise=np.max(yy)/2.5
     y = data_gen(x,BreitWigner,theta,rng=rng,sigma=sigma_noise)
     
     #what are we printing here? Is it the likelihood computed over the known parameters but given the data with uncertanties as an input?
-    print('logL (simulation)= ', log_likelihood(x,y,line, theta,sigma=sigma_noise))
+    print('logL (simulation)= ', log_likelihood(x,y,BreitWigner, theta,sigma=sigma_noise))
     fig = plt.figure(1)
     ax = fig.add_subplot(111)
     fig = plt.figure(1)
     plt.title('Bayesian inference on Breit Wigner')
     plt.plot(x,yy, linestyle='--', color='#7393B3', zorder=1,label='true')
     plt.errorbar(x,y, yerr=sigma_noise, xerr=None, marker='.', linestyle=' ', color=(0,0,0), zorder=2, label='sim w\ Gaussian noise')
-    ax.set_xlabel('x')
-    ax.set_ylabel('cross section')
+    ax.set_xlabel('Energy')
+    ax.set_ylabel('Cross section')
     plt.legend(loc='best')
+    plt.tight_layout()
     plt.show()
     
     
@@ -141,29 +145,61 @@ if __name__ == "__main__":
     '''
     ##ACTUAL BREIT WIGNER
     fig = plt.figure(3)
-    decaywidth = np.linspace(0.0,2.0,nbins)
-    mass = np.linspace(1.0,3.0e6,nbins)
+    decaywidth = np.linspace(1.0,3.0e6,nbins)
+    mass = np.linspace(0.4e6,1.5e6,nbins)
     logP2 = np.zeros((nbins,nbins),np.float64)
+    dMgamma = np.zeros((nbins,nbins),np.float64)
     #now we compute the actual logP over the entire parameter space
     for i in range(nbins):
         for j in range(nbins):
             logP2[i,j] = log_posterior(x,y,BreitWigner,(mass[i],decaywidth[j]),sigma=sigma_noise)
+            dMgamma[i,j] = (np.max(decaywidth)-np.min(decaywidth))*(np.max(mass)-np.min(mass))/(nbins**2)
     #now we print the <insert name here> necessary for odds ratio calculation
     print('logZ (Breit Wigner)= {}'.format(logsumexp(logP2)*np.diff(x)[0]*np.diff(y)[0]) )
     #we compute the contours for given probability regions
-    levels2 = np.sort(FindHeightForLevel(logP2,[0.5,0.9,0.99]))
+    K = np.exp(logsumexp(logP2 + np.log(dMgamma)))
+    levels2 = np.sort(FindHeightForLevel(logP2 - np.log(K),[0.68,0.9,0.99]))
+    #deltamass = np.diff(mass)
+    #deltadecaywidth = np.diff(decaywidth)
+    #normalization costant
+    
 
     
     X,Y = np.meshgrid(mass, decaywidth)
+    P2 = logP2-np.log(K)
     ax = fig.add_subplot(111)
     #contours
-    P2max=np.exp(logP2.max())
-    norm = colors.Normalize(vmin=0.0, vmax=P2max)
-    D = ax.contourf(X,Y, np.exp(logP2.T), 1000, cmap='Blues', norm=norm)
-    ax.contour(X,Y,np.exp(logP2.T),np.exp(levels2),linestyles='-',colors='k')
-    ax.set_xlabel('mass')
-    ax.set_ylabel('decaywidth/mass')
+    cmap = plt.get_cmap('Blues')
+    norm = colors.Normalize(vmin=np.exp(P2.min()), vmax=np.exp(P2.max()))
+    D = ax.contourf(X,Y, np.exp(P2.T), 1000, cmap=cmap, norm=norm)
+    ax.contour(X,Y,np.exp(P2.T),np.exp(levels2),linestyles='-',colors='k')
+    ax.axhline(gamma)
+    ax.axvline(M)
+    ax.set_xlabel('Mass')
+    ax.set_ylabel('Decay width')
     plt.colorbar(D)
+    plt.tight_layout()
     #plt.show()
     
+    print('integral over posterior = {}'.format(np.sum(np.exp(P2)*dMgamma)))
     
+    fig = plt.figure(5)
+    plt.title('Marginalization')
+    plt.subplot(1,2,1)
+    pdf = (np.exp(P2)*dMgamma).sum(axis=1)
+    plt.plot(mass,pdf,'k', label='Mass p.d.f.')
+    plt.fill_between(mass, pdf, color=cmap(0.5), alpha=0.75)
+    plt.axvline(M, label='true value')
+    plt.xlabel('Mass')
+    plt.legend(loc='best')
+    
+    plt.subplot(1,2,2)
+    pdf=(np.exp(P2)*dMgamma).sum(axis=0)
+    plt.plot(decaywidth, pdf,'k', label='Decay width p.d.f.')
+    plt.fill_between(decaywidth, pdf, color=cmap(0.5), alpha=0.75)
+    plt.axvline(gamma, label='true value')
+    plt.xlabel('Decay width')
+    plt.legend(loc='best')
+    plt.tight_layout()
+    
+    plt.show()
