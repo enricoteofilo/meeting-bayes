@@ -1,3 +1,4 @@
+
 import numpy as np
 from scipy.special import logsumexp
 import os
@@ -85,6 +86,7 @@ def data_gen(x,model,theta,rng,sigma):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
     import matplotlib.colors as colors
+    # %matplotlib qt
 
     rng = np.random.default_rng(4269420)
     M = 1.0e6
@@ -188,7 +190,7 @@ if __name__ == "__main__":
     plt.subplot(1,2,1)
     pdf = (np.exp(P2)*dMgamma).sum(axis=1)
     plt.plot(mass,pdf,'k', label='Mass p.d.f.')
-    plt.fill_between(mass, pdf, color=cmap(0.5), alpha=0.75)
+    plt.fill_between(mass, pdf, color=cmap(0.5), alpha=01.0)
     plt.axvline(M, label='true value')
     plt.xlabel('Mass')
     plt.legend(loc='best')
@@ -196,7 +198,7 @@ if __name__ == "__main__":
     plt.subplot(1,2,2)
     pdf=(np.exp(P2)*dMgamma).sum(axis=0)
     plt.plot(decaywidth, pdf,'k', label='Decay width p.d.f.')
-    plt.fill_between(decaywidth, pdf, color=cmap(0.5), alpha=0.75)
+    plt.fill_between(decaywidth, pdf, color=cmap(0.5), alpha=1.0)
     plt.axvline(gamma, label='true value')
     plt.xlabel('Decay width')
     plt.legend(loc='best')
