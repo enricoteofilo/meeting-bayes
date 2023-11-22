@@ -152,7 +152,7 @@ if __name__ == "__main__":
     ax.set_ylabel('intercept')
     plt.colorbar(C)
     plt.tight_layout()
-    plt.savefig('/breitwigner/figs/posterior_line.svg')
+    plt.savefig('./breitwigner/figs/posterior_line.svg')
     #plt.show()
     
     print('integral over posterior = {}'.format(np.sum(np.exp(logP)*dAB)))
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Decay width')
     plt.colorbar(D)
     plt.tight_layout()
-    plt.savefig('/breitwigner/figs/posterior_BreitWigner.svg')
+    plt.savefig('./breitwigner/figs/posterior_BreitWigner.svg')
     
     print('integral over posterior = {}'.format(np.sum(np.exp(P2)*dMgamma)))
     
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     plt.xlabel('Decay width')
     plt.legend(loc='best')
     plt.tight_layout()
-    plt.savefig('/breitwigner/figs/marginalized_posterior_BreitWigner.svg')
+    plt.savefig('./breitwigner/figs/marginalized_posterior_BreitWigner.svg')
     plt.show()
     
     M_inferred = np.sum((np.exp(P2)*dMgamma).sum(axis=1)*mass)
@@ -263,5 +263,5 @@ if __name__ == "__main__":
     ax.set_ylabel('Cross section')
     plt.legend(loc='best')
     plt.tight_layout()
-    plt.savefig('/breitwigner/figs/plot_BreitWigner.svg')
+    plt.savefig('./breitwigner/figs/plot_BreitWigner.svg')
     plt.show()
