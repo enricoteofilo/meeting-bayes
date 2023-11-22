@@ -93,13 +93,14 @@ if __name__ == "__main__":
     gamma = 5.0e5
     theta = (M,gamma)
 
-    x = np.linspace(1.0,2.0e0*(theta[0]+theta[1]),70)
+    x = np.linspace(1.0,2.0e0*(theta[0]+theta[1]),50)
     yy = BreitWigner(x,theta)
-    sigma_noise=np.max(yy)/2.5
+    sigma_noise=np.max(yy)/3.0
     y = data_gen(x,BreitWigner,theta,rng=rng,sigma=sigma_noise)
     
     #what are we printing here? Is it the likelihood computed over the known parameters but given the data with uncertanties as an input?
     print('logL (simulation)= ', log_likelihood(x,y,BreitWigner, theta,sigma=sigma_noise))
+    
     fig = plt.figure(1)
     ax = fig.add_subplot(111)
     fig = plt.figure(1)
@@ -113,42 +114,75 @@ if __name__ == "__main__":
     plt.show()
     
     
-    nbins = 256
+    nbins = 1024
     
-    '''
     ##JUST A LINE
-    #we're defining the parameter space on which we want to do the inference
-    intercept = np.linspace(1.0e-7,1.2e-6,nbins)
-    slope = np.linspace(-1.0e-6,0.5e-6,nbins)
-    #check later if the posterior rails against the prior
+    fig = plt.figure(2)
+    plt.title('Posterior (line)')
+    #slope = np.linspace((-3.0e-6-3.0e-6)/(2.25e6-1.5e6),(3.0e-6+2.0e-6)/(1.0e6-0.6e6),nbins)
+    slope = np.linspace(-1.0e-12,0.5e-12,nbins)
+    #intercept = np.linspace(-5.0e-6,5.0e-6,nbins)
+    intercept = np.linspace(-0.25e-6,1.75e-6,nbins)
     logP = np.zeros((nbins,nbins),np.float64)
+    dAB = np.zeros((nbins,nbins),np.float64)
     #now we compute the actual logP over the entire parameter space
     for i in range(nbins):
         for j in range(nbins):
             logP[i,j] = log_posterior(x,y,line,(slope[i],intercept[j]),sigma=sigma_noise)
-    
+            dAB[i,j] = (np.max(slope)-np.min(slope))*(np.max(intercept)-np.min(intercept))/(nbins**2)
     #now we print the <insert name here> necessary for odds ratio calculation
-    print('logZ (line)= {}'.format(logsumexp(logP)*np.diff(x)[0]*np.diff(y)[0]) )
+    #print('logZ (line)= {}'.format(logsumexp(logP)*np.diff(x)[0]*np.diff(y)[0]) )
+    logZ = logsumexp(logP + np.log(dAB))
+    print('logZ (line)= {}'.format(logZ) )
     #we compute the contours for given probability regions
-    #levels = np.sort(FindHeightForLevel(logP,[0.5,0.9,0.99]))
-    
-    #making the 2D plot of logP on the whole parameter space
-    fig = plt.figure(2)
+    K = np.exp(logsumexp(logP + np.log(dAB)))
+    levels = np.sort(FindHeightForLevel(logP - np.log(K),[0.68,0.95,0.995]))
+    #deltaslope = np.diff(slope)
+    #deltaintercept = np.diff(intercept)
+    #normalization costant
     X,Y = np.meshgrid(slope, intercept)
-    ax = fig.add_subplot(121)
+    logP = logP-np.log(K)
+    ax = fig.add_subplot(111)
     #contours
-    #norm = colors.Normalize(vmin=0.0, vmax=1.0)
-    C = ax.contourf(X,Y, np.exp(logP.T), 1000, cmap='Blues') #norm=norm)
+    cmap = plt.get_cmap('Oranges')
+    norm = colors.Normalize(vmin=np.exp(logP.min()), vmax=np.exp(logP.max()))
+    C = ax.contourf(X,Y, np.exp(logP.T), 1000, cmap=cmap, norm=norm)
     ax.contour(X,Y,np.exp(logP.T),np.exp(levels),linestyles='-',colors='k')
     ax.set_xlabel('slope')
     ax.set_ylabel('intercept')
     plt.colorbar(C)
+    plt.tight_layout()
+    plt.savefig('/breitwigner/figs/posterior_line.svg')
+    #plt.show()
+    
+    print('integral over posterior = {}'.format(np.sum(np.exp(logP)*dAB)))
     
     '''
-    ##ACTUAL BREIT WIGNER
     fig = plt.figure(3)
+    plt.title('Marginalization')
+    plt.subplot(1,2,1)
+    pdf = (np.exp(logP)*dAB).sum(axis=1)
+    plt.plot(slope,pdf,'k', label='slope p.d.f.')
+    plt.fill_between(slope, pdf, color=cmap(0.5), alpha=1.0)
+    plt.axvline(M, label='true value')
+    plt.xlabel('slope')
+    plt.legend(loc='best')
+    
+    plt.subplot(1,2,2)
+    pdf=(np.exp(logP)*dAB).sum(axis=0)
+    plt.plot(intercept, pdf,'k', label='Decay width p.d.f.')
+    plt.fill_between(intercept, pdf, color=cmap(0.5), alpha=1.0)
+    plt.axvline(gamma, label='true value')
+    plt.xlabel('Decay width')
+    plt.legend(loc='best')
+    plt.tight_layout()
+    plt.show()
+    '''
+    ##ACTUAL BREIT WIGNER
+    fig = plt.figure(4)
+    plt.title('Posterior (Breit-Wigner)')
     decaywidth = np.linspace(1.0,3.0e6,nbins)
-    mass = np.linspace(0.4e6,1.5e6,nbins)
+    mass = np.linspace(5.0e5,1.5e6,nbins)
     logP2 = np.zeros((nbins,nbins),np.float64)
     dMgamma = np.zeros((nbins,nbins),np.float64)
     #now we compute the actual logP over the entire parameter space
@@ -157,10 +191,12 @@ if __name__ == "__main__":
             logP2[i,j] = log_posterior(x,y,BreitWigner,(mass[i],decaywidth[j]),sigma=sigma_noise)
             dMgamma[i,j] = (np.max(decaywidth)-np.min(decaywidth))*(np.max(mass)-np.min(mass))/(nbins**2)
     #now we print the <insert name here> necessary for odds ratio calculation
-    print('logZ (Breit Wigner)= {}'.format(logsumexp(logP2)*np.diff(x)[0]*np.diff(y)[0]) )
+    #print('logZ (Breit Wigner)= {}'.format(logsumexp(logP2)*np.diff(x)[0]*np.diff(y)[0]) )
+    logZ2 = logsumexp(logP2 + np.log(dMgamma))
+    print('logZ (Breit Wigner)= {}'.format(logZ2) )
     #we compute the contours for given probability regions
     K = np.exp(logsumexp(logP2 + np.log(dMgamma)))
-    levels2 = np.sort(FindHeightForLevel(logP2 - np.log(K),[0.68,0.9,0.99]))
+    levels2 = np.sort(FindHeightForLevel(logP2 - np.log(K),[0.68,0.95,0.995]))
     #deltamass = np.diff(mass)
     #deltadecaywidth = np.diff(decaywidth)
     #normalization costant
@@ -181,7 +217,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Decay width')
     plt.colorbar(D)
     plt.tight_layout()
-    #plt.show()
+    plt.savefig('/breitwigner/figs/posterior_BreitWigner.svg')
     
     print('integral over posterior = {}'.format(np.sum(np.exp(P2)*dMgamma)))
     
@@ -190,7 +226,7 @@ if __name__ == "__main__":
     plt.subplot(1,2,1)
     pdf = (np.exp(P2)*dMgamma).sum(axis=1)
     plt.plot(mass,pdf,'k', label='Mass p.d.f.')
-    plt.fill_between(mass, pdf, color=cmap(0.5), alpha=01.0)
+    plt.fill_between(mass, pdf, color=cmap(0.5), alpha=1.0)
     plt.axvline(M, label='true value')
     plt.xlabel('Mass')
     plt.legend(loc='best')
@@ -203,5 +239,29 @@ if __name__ == "__main__":
     plt.xlabel('Decay width')
     plt.legend(loc='best')
     plt.tight_layout()
+    plt.savefig('/breitwigner/figs/marginalized_posterior_BreitWigner.svg')
+    plt.show()
     
+    M_inferred = np.sum((np.exp(P2)*dMgamma).sum(axis=1)*mass)
+    dM_inferred = np.sqrt(np.sum((np.exp(P2)*dMgamma).sum(axis=1)*(mass)**2)-M_inferred**2)
+    
+    gamma_inferred = np.sum((np.exp(P2)*dMgamma).sum(axis=0)*decaywidth)
+    dgamma_inferred = np.sqrt(np.sum((np.exp(P2)*dMgamma).sum(axis=0)*(decaywidth)**2)-gamma_inferred**2)
+    
+    print('Mass over posterior = {:.3e}+-{:.1e} which is {:.1f} sigma from true'.format(M_inferred,dM_inferred,(M_inferred-M)/dM_inferred))
+    print('Gamma over posterior = {:.3e}+-{:.1e}  which is {:.1f} sigma from true'.format(gamma_inferred,dgamma_inferred, (gamma_inferred-gamma)/dgamma_inferred))
+    print('Odds = {:.3f}'.format(logZ2-logZ))
+    
+    fig = plt.figure(7)
+    ax = fig.add_subplot(111)
+    plt.title('Bayesian inference on Breit Wigner')
+    plt.plot(x,yy, linestyle='--', color='#7393B3', zorder=2,label='true')
+    plt.errorbar(x,y, yerr=sigma_noise, xerr=None, marker='.', linestyle=' ', color=(0,0,0), zorder=3, label='sim w\ Gaussian noise')
+    cmap1 = plt.get_cmap('Oranges')
+    plt.plot(x, BreitWigner(x,(M_inferred,gamma_inferred)), ls='-', color=cmap1(0.5), alpha=1.0,zorder=4, label='inferred')
+    ax.set_xlabel('Energy')
+    ax.set_ylabel('Cross section')
+    plt.legend(loc='best')
+    plt.tight_layout()
+    plt.savefig('/breitwigner/figs/plot_BreitWigner.svg')
     plt.show()
