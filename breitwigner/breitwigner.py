@@ -1,4 +1,3 @@
-
 import numpy as np
 from scipy.special import logsumexp
 import os
@@ -94,7 +93,8 @@ if __name__ == "__main__":
     theta = (M,gamma)
 
     x = np.linspace(1.0,2.0e0*(theta[0]+theta[1]),50)
-    yy = BreitWigner(x,theta)
+    xx = np.linspace(1.0,2.0e0*(theta[0]+theta[1]),10000)
+    yy = BreitWigner(xx,theta)
     sigma_noise=np.max(yy)/3.0
     y = data_gen(x,BreitWigner,theta,rng=rng,sigma=sigma_noise)
     
@@ -105,7 +105,7 @@ if __name__ == "__main__":
     ax = fig.add_subplot(111)
     fig = plt.figure(1)
     plt.title('Bayesian inference on Breit Wigner')
-    plt.plot(x,yy, linestyle='--', color='#7393B3', zorder=1,label='true')
+    plt.plot(xx,yy, linestyle='--', color='#7393B3', zorder=1,label='true')
     plt.errorbar(x,y, yerr=sigma_noise, xerr=None, marker='.', linestyle=' ', color=(0,0,0), zorder=2, label='sim w\ Gaussian noise')
     ax.set_xlabel('Energy')
     ax.set_ylabel('Cross section')
@@ -152,7 +152,7 @@ if __name__ == "__main__":
     ax.set_ylabel('intercept')
     plt.colorbar(C)
     plt.tight_layout()
-    plt.savefig('./breitwigner/figs/posterior_line.svg')
+    plt.savefig('./figs/posterior_line.svg')
     #plt.show()
     
     print('integral over posterior = {}'.format(np.sum(np.exp(logP)*dAB)))
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     ax.set_ylabel('Decay width')
     plt.colorbar(D)
     plt.tight_layout()
-    plt.savefig('./breitwigner/figs/posterior_BreitWigner.svg')
+    plt.savefig('./figs/posterior_BreitWigner.svg')
     
     print('integral over posterior = {}'.format(np.sum(np.exp(P2)*dMgamma)))
     
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     pdf = (np.exp(P2)*dMgamma).sum(axis=1)
     plt.plot(mass,pdf,'k', label='Mass p.d.f.')
     plt.fill_between(mass, pdf, color=cmap(0.5), alpha=1.0)
-    plt.axvline(M, label='true value')
+    plt.axvline(M, color=cmap(1.0),label='true value')
     plt.xlabel('Mass')
     plt.legend(loc='best')
     
@@ -235,11 +235,11 @@ if __name__ == "__main__":
     pdf=(np.exp(P2)*dMgamma).sum(axis=0)
     plt.plot(decaywidth, pdf,'k', label='Decay width p.d.f.')
     plt.fill_between(decaywidth, pdf, color=cmap(0.5), alpha=1.0)
-    plt.axvline(gamma, label='true value')
+    plt.axvline(gamma, color=cmap(1.0),label='true value')
     plt.xlabel('Decay width')
     plt.legend(loc='best')
     plt.tight_layout()
-    plt.savefig('./breitwigner/figs/marginalized_posterior_BreitWigner.svg')
+    plt.savefig('./figs/marginalized_posterior_BreitWigner.svg')
     plt.show()
     
     M_inferred = np.sum((np.exp(P2)*dMgamma).sum(axis=1)*mass)
@@ -255,13 +255,13 @@ if __name__ == "__main__":
     fig = plt.figure(7)
     ax = fig.add_subplot(111)
     plt.title('Bayesian inference on Breit Wigner')
-    plt.plot(x,yy, linestyle='--', color='#7393B3', zorder=2,label='true')
+    plt.plot(xx,yy, linestyle='--', color='#7393B3', zorder=2,label='true')
     plt.errorbar(x,y, yerr=sigma_noise, xerr=None, marker='.', linestyle=' ', color=(0,0,0), zorder=3, label='sim w\ Gaussian noise')
     cmap1 = plt.get_cmap('Oranges')
-    plt.plot(x, BreitWigner(x,(M_inferred,gamma_inferred)), ls='-', color=cmap1(0.5), alpha=1.0,zorder=4, label='inferred')
+    plt.plot(xx, BreitWigner(xx,(M_inferred,gamma_inferred)), ls='-', color=cmap1(0.5), alpha=1.0,zorder=4, label='inferred')
     ax.set_xlabel('Energy')
     ax.set_ylabel('Cross section')
     plt.legend(loc='best')
     plt.tight_layout()
-    plt.savefig('./breitwigner/figs/plot_BreitWigner.svg')
+    plt.savefig('./figs/plot_BreitWigner.svg')
     plt.show()
