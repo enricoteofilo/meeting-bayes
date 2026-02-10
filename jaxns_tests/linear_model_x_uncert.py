@@ -17,10 +17,11 @@ tfpd = tfp.distributions
 def linear_model(x, m, q):
     return m * x + q
 
-def generate_data(key, params_tuple, x_range, num_points, noise_std):
+def generate_data(key, params_tuple, x_range, num_points, noise_std_x, noise_std_y):
     m, q = params_tuple
     x = jnp.linspace(x_range[0], x_range[1], num_points)
-    y = linear_model(x, m, q) + random.normal(key, shape=x.shape) * noise_std
+    y = linear_model(x, m, q) + random.normal(key, shape=x.shape) * noise_std_y
+    x = x + random.normal(key, shape=x.shape) * noise_std_x
     return x, y
 
 def log_normal(x, mean, std):
@@ -32,7 +33,7 @@ if __name__ == "__main__":
     true_params = jnp.array([2.0, 1.0])  # m, q
     x_range = jnp.array([0,10.0])
     noise_sigma = 2.0
-    x_obs, y_obs = generate_data(key, true_params, x_range, num_points=50, noise_std=noise_sigma)
+    x_obs, y_obs = generate_data(key, true_params, x_range, num_points=50, noise_std_x=noise_sigma, noise_std_y=noise_sigma)
     
     plt.figure('linear_generated')
     plt.title('Generated Data for Linear Model')
@@ -47,13 +48,17 @@ if __name__ == "__main__":
     def log_likelihood(m, q, error_std):
         return jnp.sum(tfpd.Normal(linear_model(x_obs, m, q), error_std).log_prob(y_obs))
     
+    def log_likelihood_with_x_uncert(m, q, epsilon_y, epsilon_x):
+        return jnp.sum(tfpd.Normal(linear_model(x_obs, m, q), jnp.sqrt(epsilon_y**2 + (m * epsilon_x)**2)).log_prob(y_obs))
+    
     def prior_model():
         m = yield Prior(tfpd.Uniform(-100.0,100.0),name='m')
-        q = yield Prior(tfpd.Uniform(-100.0,100.0),name='q')
-        error_std = yield Prior(tfpd.Uniform(0,25.0),name='error_std')
-        return m,q,error_std
+        q = yield Prior(tfpd.Uniform(-100.0,1500.0),name='q')
+        epsilon_y = yield Prior(tfpd.Uniform(0,25.0),name=r'$\epsilon_y$')
+        epsilon_x = yield Prior(tfpd.Uniform(0,25.0),name=r'$\epsilon_x$')
+        return m,q,epsilon_y, epsilon_x
     
-    model = Model(prior_model=prior_model, log_likelihood=log_likelihood)
+    model = Model(prior_model=prior_model, log_likelihood=log_likelihood_with_x_uncert)
     model.sanity_check(random.PRNGKey(1), S=10)
 
     ns = NestedSampler(model, s=1000, k=model.U_ndims, num_live_points=model.U_ndims*1000)
@@ -61,6 +66,6 @@ if __name__ == "__main__":
     results = ns.to_results(termination_reason, state=state)
     ns.summary(results)
     ns.plot_diagnostics(results)
-    ns.plot_cornerplot(results, save_name='linear_corner.png', kde_overlay=True)
+    ns.plot_cornerplot(results, save_name='linear_corner_x_uncert.png', kde_overlay=True)
 
     exit()
