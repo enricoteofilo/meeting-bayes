@@ -64,6 +64,6 @@ if __name__ == "__main__":
     results = ns.to_results(termination_reason, state=state)
     ns.summary(results)
     ns.plot_diagnostics(results)
-    ns.plot_cornerplot(results, save_name='linear_corner.png', kde_overlay=True)
+    ns.plot_cornerplot(results, save_name='./jaxns_tests/linear_corner.png', kde_overlay=True)
 
     exit()
