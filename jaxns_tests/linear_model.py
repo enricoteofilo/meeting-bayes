@@ -26,6 +26,9 @@ def generate_data(key, params_tuple, x_range, num_points, noise_std):
 def log_normal(x, mean, std):
     return tfpd.Normal(loc=mean, scale=std).log_prob(x)
 
+def main_body():
+    return 0
+
 if __name__ == "__main__":
     print(f"JAX is using: {jax.devices()}")
     key = random.PRNGKey(0)
