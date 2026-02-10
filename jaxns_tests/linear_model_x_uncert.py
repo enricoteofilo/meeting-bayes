@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import jax
 jax.config.update("jax_enable_x64", True)
+jax.config.update("jax_platform_name", "cpu")
 jnp=jax.numpy
 jsp=jax.scipy
 random = jax.random
