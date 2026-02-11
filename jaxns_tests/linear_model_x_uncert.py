@@ -1,6 +1,5 @@
 import os
 os.environ['JAX_ENABLE_X64'] = 'True'
-from matplotlib import scale
 import matplotlib.pyplot as plt
 import numpy as np
 import jax
