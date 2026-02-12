@@ -1,4 +1,4 @@
-import os
+import os, sys
 os.environ['JAX_ENABLE_X64'] = 'True'
 import matplotlib.pyplot as plt
 import numpy as np
@@ -12,7 +12,6 @@ from jax import grad, jit, vmap
 from jaxns import Prior, Model, NestedSampler, bruteforce_evidence
 import tensorflow_probability.substrates.jax as tfp
 tfpd = tfp.distributions
-
 
 @jit
 def linear_model(x, m, q):
@@ -55,10 +54,10 @@ if __name__ == "__main__":
         return jnp.sum(tfpd.Normal(linear_model(x_obs, m, q), jnp.sqrt(epsilon_y**2 + (m * epsilon_x)**2)).log_prob(y_obs))
     
     def prior_model():
-        m = yield Prior(tfpd.Uniform(-1.0,5.0),name='m')
-        q = yield Prior(tfpd.Uniform(-1.0,5.0),name='q')
-        epsilon_y = yield Prior(tfpd.Uniform(1.0e-14,5.0),name=r'$\sigma_y$')
-        epsilon_x = yield Prior(tfpd.Uniform(1.0e-14,5.0),name=r'$\sigma_x$')
+        m = yield Prior(tfpd.Uniform(-1.0,10.0),name='m')
+        q = yield Prior(tfpd.Uniform(-1.0,10.0),name='q')
+        epsilon_y = yield Prior(tfpd.Uniform(1.0e3*sys.float_info.epsilon,10.0),name=r'$\sigma_y$')
+        epsilon_x = yield Prior(tfpd.Uniform(1.0e3*sys.float_info.epsilon,10.0),name=r'$\sigma_x$')
         return m,q,epsilon_y, epsilon_x
     
     model = Model(prior_model=prior_model, log_likelihood=log_likelihood_with_x_uncert)
@@ -68,7 +67,7 @@ if __name__ == "__main__":
     termination_reason, state = jax.jit(ns)(random.PRNGKey(2))
     results = ns.to_results(termination_reason, state=state)
     results_np = jax.tree_util.tree_map(np.asarray, results)
-    np.savez("jaxns_tests/linear_results_np.npz", **results_np._asdict())
+    np.savez("jaxns_tests/linear_x_uncert_results_np.npz", **results_np._asdict())
     ns.summary(results)
     ns.plot_diagnostics(results)
     ns.plot_cornerplot(results, save_name='./jaxns_tests/linear_corner_x_uncert.png', kde_overlay=True)
