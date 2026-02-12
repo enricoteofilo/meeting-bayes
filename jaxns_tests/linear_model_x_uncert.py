@@ -18,11 +18,11 @@ tfpd = tfp.distributions
 def linear_model(x, m, q):
     return m * x + q
 
-def generate_data(key, params_tuple, x_range, num_points, noise_std_x, noise_std_y):
-    m, q = params_tuple
+def generate_data(key, m, q, x_range, num_points, noise_std_x, noise_std_y):
+    key_x, key_y = random.split(key)
     x = jnp.linspace(x_range[0], x_range[1], num_points)
-    y = linear_model(x, m, q) + random.normal(key, shape=x.shape) * noise_std_y
-    x = x + random.normal(key, shape=x.shape) * noise_std_x
+    y = linear_model(x, m, q) + random.normal(key_y, shape=x.shape) * noise_std_y
+    x = x + noise_std_x * random.normal(key_x, shape=x.shape)
     return x, y
 
 def log_normal(x, mean, std):
@@ -33,20 +33,20 @@ if __name__ == "__main__":
     key = random.PRNGKey(0)
     true_params = jnp.array([2.0, 1.0])  # m, q
     x_range = jnp.array([0,10.0])
-    noise_sigma_x = 2.0
-    noise_sigma_y = 1.0
-    x_obs, y_obs = generate_data(key, true_params, x_range, num_points=50, noise_std_x=noise_sigma_x, noise_std_y=noise_sigma_y)
+    noise_sigma_x = 1.0
+    noise_sigma_y = 2.0
+    x_obs, y_obs = generate_data(key, *true_params, x_range, 50, noise_sigma_x, noise_sigma_y)
+    x_test = jnp.linspace(-5.0, 15.0, 100)
     
     plt.figure('linear_generated')
     plt.title('Generated Data for Linear Model')
     plt.plot(x_obs, y_obs, marker='o', label='Observed Data', markersize=5.0, linestyle='None')
-    plt.plot(x_obs, linear_model(x_obs, *true_params), label='True Model', color='black', linestyle='--')
+    plt.plot(x_test, linear_model(x_test, *true_params), label='True Model', color='black', linestyle='--')
     plt.xlabel('x')
     plt.ylabel('y')
     plt.legend(loc='best')
     plt.savefig('linear_generated_x_uncert.png', dpi=600)
     plt.close()
-    #plt.show()
 
     def log_likelihood(m, q, error_std):
         return jnp.sum(tfpd.Normal(linear_model(x_obs, m, q), error_std).log_prob(y_obs))
@@ -57,8 +57,8 @@ if __name__ == "__main__":
     def prior_model():
         m = yield Prior(tfpd.Uniform(-1.0,5.0),name='m')
         q = yield Prior(tfpd.Uniform(-1.0,5.0),name='q')
-        epsilon_y = yield Prior(tfpd.Uniform(1.0e-14,3.0),name=r'$\sigma_y$')
-        epsilon_x = yield Prior(tfpd.Uniform(1.0e-14,3.0),name=r'$\sigma_x$')
+        epsilon_y = yield Prior(tfpd.Uniform(1.0e-14,5.0),name=r'$\sigma_y$')
+        epsilon_x = yield Prior(tfpd.Uniform(1.0e-14,5.0),name=r'$\sigma_x$')
         return m,q,epsilon_y, epsilon_x
     
     model = Model(prior_model=prior_model, log_likelihood=log_likelihood_with_x_uncert)
@@ -67,8 +67,11 @@ if __name__ == "__main__":
     ns = NestedSampler(model, s=1000, k=model.U_ndims, num_live_points=model.U_ndims*2000)
     termination_reason, state = jax.jit(ns)(random.PRNGKey(2))
     results = ns.to_results(termination_reason, state=state)
+    results_np = jax.tree_util.tree_map(np.asarray, results)
+    np.savez("jaxns_tests/linear_results_np.npz", **results_np._asdict())
     ns.summary(results)
     ns.plot_diagnostics(results)
     ns.plot_cornerplot(results, save_name='./jaxns_tests/linear_corner_x_uncert.png', kde_overlay=True)
+
 
     exit()
